@@ -14,6 +14,8 @@ from service.crud_fs import FileStorage
 from service.crud_memory import MemoryStorage
 from service.crud_redis import RedisStorage  # XXX relative imports?
 from service.data_aux import JobComplete
+from service.routers.single_job import router as balancing_router
+from measurement.router.measurement import router as meas_router
 
 # from crud_fs import save_result, delete_result, get_result , get_latest, clean_up
 from starlette.responses import RedirectResponse
@@ -49,7 +51,7 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
 
 app = FastAPI()
 
-balancing_router = APIRouter(
+balancing_router_old = APIRouter(
     tags=["balancing"],
 )
 
@@ -58,7 +60,7 @@ storage = FileStorage(filepath=Path(__file__).parent / "store")  # MemoryStorage
 # storage = RedisStorage()
 
 
-@balancing_router.post("/")
+@balancing_router_old.post("/")
 async def create_balancing_task(input: data_input.InputData, background_tasks: BackgroundTasks) -> JobComplete:
     log.info(f"received input data with id=<{input.id}>. Starting algorithm...")
     job = JobComplete(id=input.id, input=input)
@@ -67,12 +69,12 @@ async def create_balancing_task(input: data_input.InputData, background_tasks: B
     return job
 
 
-@balancing_router.get("/", description="get the ids of all jobs")
+@balancing_router_old.get("/", description="get the ids of all jobs")
 async def get_ids_endpoint() -> List[str]:
     return await storage.all_ids()
 
 
-@balancing_router.get("/{id}")
+@balancing_router_old.get("/{id}")
 async def get_result_endpoint(id: str) -> JobComplete:
     output = await storage.read(id)
     if output is None:
@@ -91,7 +93,7 @@ async def get_result_endpoint(id: str) -> JobComplete:
 #     return {"success": True}
 
 
-@balancing_router.delete("/{id}")
+@balancing_router_old.delete("/{id}")
 async def delete_result_endpoint(id: str) -> JobComplete:
     try:
         result = await storage.delete(id)
@@ -113,7 +115,7 @@ def redirect_to_docs():
 
 
 app.include_router(balancing_router, prefix="/balancing", dependencies=[Depends(get_current_username)])
-
+app.include_router(meas_router, prefix="/measurement", dependencies=[Depends(get_current_username)])
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
