@@ -1,4 +1,5 @@
 import datetime
+import os
 from typing import Literal, Optional, Union
 import pandas as pd
 from sqlalchemy import (
@@ -17,16 +18,18 @@ from fastapi import HTTPException
 import sqlalchemy
 
 
-DB_URL = "postgresql://postgres:password@localhost:5432/postgres"
+DB_URL = f"postgresql://{os.getenv('POSTGRES_USER','postgres')}:{os.getenv('POSTGRES_PASSWORD','')}@{os.getenv('POSTGRES_HOST','localhost')}:5432/{os.getenv('POSTGRES_DB','postgres')}"
 ENGINE = create_engine(DB_URL, echo=True)
 META = MetaData()
 
 
 make_ht_query_template = text("SELECT create_hypertable(:table_name, by_range('timestamp'))")
 
+
 def list_all_tables():
     META.reflect(ENGINE)
     return list(META.tables.keys())
+
 
 def get_alch_table(name: str):
     return Table(
